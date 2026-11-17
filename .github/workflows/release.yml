@@ -16,7 +16,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -50,12 +50,12 @@ jobs:
             echo "No #major, #minor or #patch commit found; skipping release."
           fi
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         if: steps.release.outputs.released == 'true'
         with:
           version: 11
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: steps.release.outputs.released == 'true'
         with:
           node-version: 24
