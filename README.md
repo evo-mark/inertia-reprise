@@ -20,6 +20,11 @@ A Vite plugin bundling [Symfony Reprise](https://github.com/symfony/reprise) and
 the [Inertia Vite plugin](https://inertiajs.com), with sensible defaults for
 client and SSR builds.
 
+It is the recommended frontend setup for
+[inertia-symfony](https://github.com/evo-mark/inertia-symfony). See its
+[frontend setup guide](https://evo-mark.github.io/inertia-symfony/guide/frontend) in the
+documentation.
+
 ## Usage
 
 ```js
@@ -71,12 +76,3 @@ node var/ssr/ssr.js
 By default dependencies stay as runtime imports and are resolved from
 `node_modules`. Set `ssr: { noExternal: true }` to produce a self-contained
 bundle that can run without `node_modules`.
-
-## Development
-
-```sh
-pnpm --filter @evomark/inertia-reprise dev   # watch
-pnpm --filter @evomark/inertia-reprise test
-```
-
-The package builds to `dist/` on `pnpm install` (`prepare`).
