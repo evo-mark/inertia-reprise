@@ -1,0 +1,83 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write # push tags, create releases
+  id-token: write # npm provenance
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Bumps the version when a commit message in the push contains
+      # #major, #minor or #patch. With no keyword, nothing is tagged.
+      - name: Tag
+        id: tag
+        uses: anothrNick/github-tag-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEFAULT_BUMP: none
+          WITH_V: true
+          RELEASE_BRANCHES: main
+
+      - name: Detect release
+        id: release
+        env:
+          NEW_TAG: ${{ steps.tag.outputs.new_tag }}
+          OLD_TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          if [ -n "$NEW_TAG" ] && [ "$NEW_TAG" != "$OLD_TAG" ]; then
+            echo "released=true" >> "$GITHUB_OUTPUT"
+            echo "version=${NEW_TAG#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "No #major, #minor or #patch commit found; skipping release."
+          fi
+
+      - uses: pnpm/action-setup@v4
+        if: steps.release.outputs.released == 'true'
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        if: steps.release.outputs.released == 'true'
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - name: Install
+        if: steps.release.outputs.released == 'true'
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Typecheck, test and build
+        if: steps.release.outputs.released == 'true'
+        run: |
+          pnpm typecheck
+          pnpm test
+          pnpm build
+
+      - name: Publish to npm
+        if: steps.release.outputs.released == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          npm version "$VERSION" --no-git-tag-version
+          npm publish --access public --provenance
+
+      - name: Create GitHub release
+        if: steps.release.outputs.released == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.new_tag }}
+        run: gh release create "$TAG" --title "$TAG" --generate-notes
