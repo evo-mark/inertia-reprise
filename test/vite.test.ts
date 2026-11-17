@@ -22,10 +22,7 @@ function config(
         c: UserConfig,
         env: { command: string; mode: string; isSsrBuild: boolean },
     ) => UserConfig | undefined | null;
-    return (
-        hook(userConfig, { command: "build", mode: "production", isSsrBuild }) ??
-        {}
-    );
+    return hook(userConfig, { command: "build", mode: "production", isSsrBuild }) ?? {};
 }
 
 describe("client builds", () => {
@@ -37,9 +34,7 @@ describe("client builds", () => {
 
     it("uses the input option", () => {
         const input = { main: "assets/main.js" };
-        expect(config({ input }, false).build?.rolldownOptions?.input).toEqual(
-            input,
-        );
+        expect(config({ input }, false).build?.rolldownOptions?.input).toEqual(input);
     });
 
     it("respects a configured input", () => {
@@ -48,9 +43,7 @@ describe("client builds", () => {
                 build: { rolldownOptions: { input: "x.js" } },
             }),
         ).toEqual({});
-        expect(config(undefined, false, { input: { a: "a.js" } } as UserConfig)).toEqual(
-            {},
-        );
+        expect(config(undefined, false, { input: { a: "a.js" } } as UserConfig)).toEqual({});
     });
 
     it("does not change the output", () => {
@@ -77,9 +70,9 @@ describe("ssr builds", () => {
         const root = mkdtempSync(join(tmpdir(), "ir-"));
         mkdirSync(join(root, "assets"));
         writeFileSync(join(root, "assets/ssr.js"), "");
-        expect(
-            config(undefined, true, { root }).build?.rolldownOptions?.input,
-        ).toEqual({ ssr: "assets/ssr.js" });
+        expect(config(undefined, true, { root }).build?.rolldownOptions?.input).toEqual({
+            ssr: "assets/ssr.js",
+        });
     });
 
     it("supports custom ssr options", () => {
@@ -118,8 +111,7 @@ describe("ssr builds", () => {
 });
 
 describe("symfony plugin", () => {
-    const symfony = (o?: InertiaRepriseOptions) =>
-        plugins(o).filter((p) => typeof p.apply === "function");
+    const symfony = (o?: InertiaRepriseOptions) => plugins(o).filter((p) => typeof p.apply === "function");
     const applies = (p: Plugin, isSsrBuild: boolean) =>
         (p.apply as Function)({}, { command: "build", mode: "", isSsrBuild });
 

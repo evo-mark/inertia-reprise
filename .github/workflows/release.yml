@@ -20,14 +20,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Bumps the version when a commit message in the push contains
-      # #major, #minor or #patch. With no keyword, nothing is tagged.
-      - name: Tag
+      - name: Previous tag
+        id: previous
+        run: echo "tag=$(git describe --tags --abbrev=0 2>/dev/null || true)" >> "$GITHUB_OUTPUT"
+
+      # Works out the next version from the commit messages in the push:
+      # #major, #minor or #patch. Nothing is tagged yet (DRY_RUN), so a failed
+      # build leaves no stray tag; the release step creates it.
+      - name: Next version
         id: tag
         uses: anothrNick/github-tag-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DEFAULT_BUMP: none
+          DRY_RUN: true
           WITH_V: true
           RELEASE_BRANCHES: main
 
@@ -35,7 +41,7 @@ jobs:
         id: release
         env:
           NEW_TAG: ${{ steps.tag.outputs.new_tag }}
-          OLD_TAG: ${{ steps.tag.outputs.tag }}
+          OLD_TAG: ${{ steps.previous.outputs.tag }}
         run: |
           if [ -n "$NEW_TAG" ] && [ "$NEW_TAG" != "$OLD_TAG" ]; then
             echo "released=true" >> "$GITHUB_OUTPUT"
@@ -59,9 +65,11 @@ jobs:
         if: steps.release.outputs.released == 'true'
         run: pnpm install --no-frozen-lockfile
 
-      - name: Typecheck, test and build
+      - name: Lint, typecheck, test and build
         if: steps.release.outputs.released == 'true'
         run: |
+          pnpm lint
+          pnpm format:check
           pnpm typecheck
           pnpm test
           pnpm build
@@ -69,15 +77,14 @@ jobs:
       - name: Publish to npm
         if: steps.release.outputs.released == 'true'
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           VERSION: ${{ steps.release.outputs.version }}
         run: |
           npm version "$VERSION" --no-git-tag-version
-          npm publish --access public --provenance
+          npm publish --access public
 
       - name: Create GitHub release
         if: steps.release.outputs.released == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.tag.outputs.new_tag }}
-        run: gh release create "$TAG" --title "$TAG" --generate-notes
+        run: gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --generate-notes

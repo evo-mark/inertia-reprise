@@ -1,0 +1,7 @@
+{
+    "$schema": "./node_modules/oxfmt/configuration_schema.json",
+    "tabWidth": 4,
+    "printWidth": 120,
+    "ignorePatterns": ["dist", "pnpm-lock.yaml", "package.json"],
+    "overrides": [{ "files": ["*.yml", "*.yaml"], "options": { "tabWidth": 2 } }]
+}

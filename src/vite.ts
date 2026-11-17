@@ -40,26 +40,20 @@ export interface InertiaRepriseOptions {
     ssr?: false | InertiaRepriseSsrOptions;
 }
 
-export default function inertiaReprise(
-    options: InertiaRepriseOptions = {},
-): PluginOption[] {
+export default function inertiaReprise(options: InertiaRepriseOptions = {}): PluginOption[] {
     const ssr = options.ssr === false ? undefined : (options.ssr ?? {});
 
     // The Symfony plugin is skipped for SSR builds, unless SSR is disabled.
-    const symfony = ([Symfony(options.symfony)].flat(Infinity) as Plugin[]).map(
-        (plugin): Plugin => ({
-            ...plugin,
-            apply: (_config, env) => !ssr || !env.isSsrBuild,
-        }),
-    );
+    const symfony = ([Symfony(options.symfony)].flat(Infinity) as Plugin[]).map((plugin): Plugin => ({
+        ...plugin,
+        apply: (_config, env) => !ssr || !env.isSsrBuild,
+    }));
 
     return [
         ...symfony,
         inertia(
             // Disabling SSR here disables it in the Inertia plugin too.
-            options.ssr === false
-                ? { ...options.inertia, ssr: false }
-                : options.inertia,
+            options.ssr === false ? { ...options.inertia, ssr: false } : options.inertia,
         ),
         {
             name: "evomark:inertia-reprise",
@@ -71,16 +65,10 @@ export default function inertiaReprise(
                     build.rollupOptions?.input !== undefined ||
                     build.rolldownOptions?.input !== undefined;
                 const defaultInput = options.input ?? { app: "assets/app.js" };
-                const ssrFallback = existsSync(
-                    resolve(config.root ?? process.cwd(), "assets/ssr.js"),
-                )
+                const ssrFallback = existsSync(resolve(config.root ?? process.cwd(), "assets/ssr.js"))
                     ? { ssr: "assets/ssr.js" }
                     : defaultInput;
-                const input = hasInput
-                    ? undefined
-                    : isSsr
-                      ? (ssr.input ?? ssrFallback)
-                      : defaultInput;
+                const input = hasInput ? undefined : isSsr ? (ssr.input ?? ssrFallback) : defaultInput;
 
                 if (!isSsr) {
                     return input && { build: { rolldownOptions: { input } } };
