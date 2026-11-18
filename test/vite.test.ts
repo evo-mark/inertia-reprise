@@ -142,6 +142,49 @@ describe("inertia plugin", () => {
         fresh({ ssr: false, inertia: { pages: "x" } as never });
         fresh({ inertia: { pages: "y" } as never });
         vi.doUnmock("@inertiajs/vite");
-        expect(calls).toEqual([{ pages: "x", ssr: false }, { pages: "y" }]);
+        expect(calls).toEqual([
+            { pages: "x", ssr: false },
+            { pages: "y", ssr: "assets/app.js" },
+        ]);
+    });
+
+    describe("ssr entry", () => {
+        async function inertiaOptions(options?: InertiaRepriseOptions, root?: string) {
+            const calls: { ssr?: unknown }[] = [];
+            vi.resetModules();
+            vi.doMock("@inertiajs/vite", () => ({
+                default: (o: { ssr?: unknown }) => (calls.push(o), { name: "inertia" }),
+            }));
+            const cwd = root ? vi.spyOn(process, "cwd").mockReturnValue(root) : undefined;
+            const { default: fresh } = await import("../src/vite");
+            fresh(options);
+            cwd?.mockRestore();
+            vi.doUnmock("@inertiajs/vite");
+            return calls[0];
+        }
+
+        it("defaults to the first client input, so the dev SSR endpoint is registered", async () => {
+            expect((await inertiaOptions())?.ssr).toBe("assets/app.js");
+            expect((await inertiaOptions({ ssr: true }))?.ssr).toBe("assets/app.js");
+            expect((await inertiaOptions({ input: { main: "assets/main.js" } }))?.ssr).toBe("assets/main.js");
+        });
+
+        it("prefers assets/ssr.js when it exists", async () => {
+            const root = mkdtempSync(join(tmpdir(), "ir-"));
+            mkdirSync(join(root, "assets"));
+            writeFileSync(join(root, "assets/ssr.js"), "");
+            expect((await inertiaOptions({}, root))?.ssr).toBe("assets/ssr.js");
+        });
+
+        it("uses the first ssr input", async () => {
+            expect((await inertiaOptions({ ssr: { input: { ssr: "assets/server.js" } } }))?.ssr).toBe(
+                "assets/server.js",
+            );
+        });
+
+        it("keeps an ssr option given to the Inertia plugin", async () => {
+            expect((await inertiaOptions({ inertia: { ssr: "custom/entry.js" } }))?.ssr).toBe("custom/entry.js");
+            expect((await inertiaOptions({ inertia: { ssr: false } }))?.ssr).toBe(false);
+        });
     });
 });

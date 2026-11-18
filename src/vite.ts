@@ -33,15 +33,32 @@ export interface InertiaRepriseOptions {
      */
     input?: Record<string, string>;
     /**
-     * SSR build settings, or `false` to leave SSR builds untouched (the Symfony
-     * plugin then also runs for them) and to pass `ssr: false` to the Inertia
-     * plugin.
+     * SSR settings (`true` for the defaults), or `false` to leave SSR builds
+     * untouched (the Symfony plugin then also runs for them) and to pass
+     * `ssr: false` to the Inertia plugin.
      */
-    ssr?: false | InertiaRepriseSsrOptions;
+    ssr?: boolean | InertiaRepriseSsrOptions;
+}
+
+/**
+ * The SSR entry file: the first SSR input, otherwise `assets/ssr.js` when it
+ * exists, otherwise the first client input. Paths are relative to the Vite root.
+ */
+function ssrEntry(
+    ssr: InertiaRepriseSsrOptions,
+    defaultInput: Record<string, string>,
+    root = process.cwd(),
+): string | undefined {
+    if (ssr.input) {
+        return Object.values(ssr.input)[0];
+    }
+
+    return existsSync(resolve(root, "assets/ssr.js")) ? "assets/ssr.js" : Object.values(defaultInput)[0];
 }
 
 export default function inertiaReprise(options: InertiaRepriseOptions = {}): PluginOption[] {
-    const ssr = options.ssr === false ? undefined : (options.ssr ?? {});
+    const ssr = options.ssr === false ? undefined : options.ssr === true ? {} : (options.ssr ?? {});
+    const defaultInput = options.input ?? { app: "assets/app.js" };
 
     // The Symfony plugin is skipped for SSR builds, unless SSR is disabled.
     const symfony = ([Symfony(options.symfony)].flat(Infinity) as Plugin[]).map((plugin): Plugin => ({
@@ -52,8 +69,12 @@ export default function inertiaReprise(options: InertiaRepriseOptions = {}): Plu
     return [
         ...symfony,
         inertia(
-            // Disabling SSR here disables it in the Inertia plugin too.
-            options.ssr === false ? { ...options.inertia, ssr: false } : options.inertia,
+            // Disabling SSR here disables it in the Inertia plugin too. Otherwise give it
+            // the SSR entry, which it would not find in assets/ on its own; without one it
+            // has no dev SSR endpoint.
+            ssr === undefined
+                ? { ...options.inertia, ssr: false }
+                : { ...options.inertia, ssr: options.inertia?.ssr ?? ssrEntry(ssr, defaultInput) },
         ),
         {
             name: "evomark:inertia-reprise",
@@ -64,7 +85,6 @@ export default function inertiaReprise(options: InertiaRepriseOptions = {}): Plu
                     (config as { input?: unknown }).input !== undefined ||
                     build.rollupOptions?.input !== undefined ||
                     build.rolldownOptions?.input !== undefined;
-                const defaultInput = options.input ?? { app: "assets/app.js" };
                 const ssrFallback = existsSync(resolve(config.root ?? process.cwd(), "assets/ssr.js"))
                     ? { ssr: "assets/ssr.js" }
                     : defaultInput;
